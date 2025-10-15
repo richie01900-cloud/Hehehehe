@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prashant Game Hub</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    
+    <style>
+        /* Custom styles for touch optimization and aesthetics */
+        body {
+            background-color: #1a202c; /* Dark background */
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif; /* Modern font */
+            user-select: none; /* Prevent accidental text selection on touch screens */
+        }
+        /* Custom glow effect for the Gem Tapper game */
+        @keyframes gem-glow {
+            0% { box-shadow: 0 0 5px #ffeb3b, 0 0 10px #ffeb3b; }
+            50% { box-shadow: 0 0 20px #ffeb3b, 0 0 40px #ffeb3b, 0 0 60px #fdd835; }
+            100% { box-shadow: 0 0 5px #ffeb3b, 0 0 10px #ffeb3b; }
+        }
+        .gem-active {
+            animation: gem-glow 1s infinite alternate;
+            background-color: #4CAF50 !important;
+            cursor: pointer;
+        }
+
+        /* ------------------------------------------------ */
+        /* TIC-TAC-TOE STYLING */
+        /* ------------------------------------------------ */
+        .ttt-cell {
+            background-color: #2D3748; /* Darker cell background */
+            border: 5px solid #4A5568; /* Clear grid lines */
+            box-shadow: 0 6px #1a202c; /* 3D effect */
+            transition: transform 0.1s ease, background-color 0.1s ease;
+        }
+        .ttt-cell:hover:not(:disabled) {
+            background-color: #4A5568;
+            transform: translateY(-2px);
+            box-shadow: 0 8px #1a202c;
+        }
+        .ttt-cell:active:not(:disabled) {
+            transform: translateY(2px);
+            box-shadow: 0 4px #1a202c;
+        }
+        /* Player X and O colors/fonts with glow for visibility on large screens */
+        .text-ttt-x {
+            color: #81e6d9 !important; /* Teal */
+            text-shadow: 0 0 10px rgba(129, 230, 217, 0.7), 0 0 20px rgba(129, 230, 217, 0.3);
+        }
+        .text-ttt-o {
+            color: #fc8181 !important; /* Red */
+            text-shadow: 0 0 10px rgba(252, 129, 129, 0.7), 0 0 20px rgba(252, 129, 129, 0.3);
+        }
+        
+        /* ------------------------------------------------ */
+        /* 2048 STYLING ENHANCEMENT (Ensuring Square Tiles) */
+        /* ------------------------------------------------ */
+        .tile {
+            font-weight: bold;
+            font-size: 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.1s ease;
+            color: #333;
+            box-shadow: inset 0 -5px 0 rgba(0,0,0,0.2); /* Depth for tiles */
+            /* Crucial for making the tile box perfectly square */
+            aspect-ratio: 1 / 1; 
+        }
+        .tile-2 { background-color: #eee4da; }
+        .tile-4 { background-color: #ede0c8; }
+        .tile-8 { background-color: #f2b179; color: #fff; }
+        .tile-16 { background-color: #f59563; color: #fff; }
+        .tile-32 { background-color: #f67c5f; color: #fff; }
+        .tile-64 { background-color: #f65e3e; color: #fff; }
+        .tile-128 { background-color: #edcf72; color: #fff; font-size: 2.5rem; }
+        .tile-256 { background-color: #edcc61; color: #fff; font-size: 2.5rem; }
+        .tile-512 { background-color: #edc850; color: #fff; font-size: 2.5rem; }
+        .tile-1024 { background-color: #edc53f; color: #fff; font-size: 2rem; }
+        .tile-2048 { background-color: #edc22e; color: #fff; font-size: 2rem; }
+        .tile-super { background-color: #3c3a32; color: #fff; font-size: 2rem; }
+        .tile-empty { background-color: #ffffff11; /* Lighter transparent empty cell for better contrast */ }
+        .game-grid-2048 {
+            background-color: #374151; /* Darker, more professional background */
+            border-radius: 16px;
+            padding: 12px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.7);
+        }
+    </style>
+</head>
+<body class="p-8 min-h-screen flex flex-col items-center justify-center">
+
+    <div id="game-app" class="w-full max-w-7xl p-8 bg-gray-800 rounded-xl shadow-2xl min-h-[80vh]">
+        </div>
+
+    <script>
+        // ====================================================================
+        // 1. LOCAL STORAGE / HIGH SCORE LOGIC
+        // ====================================================================
+
+        const HIGH_SCORE_KEY = 'prashant_game_hub_gem_tapper_highscore';
+
+        /**
+         * Loads the Gem Tapper high score from localStorage.
+         * @returns {number} The high score, defaults to 0.
+         */
+        function loadHighScore() {
+            const score = localStorage.getItem(HIGH_SCORE_KEY);
+            return score ? parseInt(score, 10) : 0;
+        }
+
+        /**
+         * Saves a new high score to localStorage if it is greater than the current one.
+         * @param {number} newScore - The score to attempt to save.
+         * @returns {boolean} True if a new high score was saved, false otherwise.
+         */
+        function saveHighScore(newScore) {
+            const currentScore = loadHighScore();
+            if (newScore > currentScore) {
+                localStorage.setItem(HIGH_SCORE_KEY, newScore.toString());
+                return true;
+            }
+            return false;
+        }
+
+        // ====================================================================
+        // 2. GLOBAL APP STATE / NAVIGATION LOGIC
+        // ====================================================================
+
+        const appState = {
+            view: 'home', // 'home', 'gemTapper', 'ticTacToe', '2048'
+        };
+
+        const renderFunctions = {
+            home: renderHome,
+            gemTapper: renderGemTapper,
+            ticTacToe: renderTicTacToe,
+            '2048': render2048,
+        };
+
+        /**
+         * Primary navigation function. Switches the current view and renders the content.
+         * @param {string} gameKey - The key of the view/game to switch to.
+         */
+        function setGame(gameKey) {
+            // Clean up running intervals/timeouts before switching view
+            clearInterval(gemTapper.gameInterval);
+            clearTimeout(gemTapper.timeTimeout);
+            cleanup2048();
+
+            appState.view = gameKey;
+            const container = document.getElementById('game-app');
+            container.innerHTML = ''; // Clear existing content
+
+            const renderFn = renderFunctions[gameKey];
+            if (renderFn) {
+                renderFn(container);
+            }
+        }
+
+        /**
+         * Renders the main menu/home page.
+         * @param {HTMLElement} container - The main app container.
+         */
+        function renderHome(container) {
+            const highScore = loadHighScore();
+
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full space-y-10">
+                    <h1 class="text-6xl font-extrabold text-indigo-400 mb-4">Prashant Game Hub</h1>
+                    <div class="text-3xl text-yellow-400 font-semibold p-4 border-2 border-yellow-500 rounded-lg">
+                        Gem Tapper High Score: <span id="home-high-score">${highScore}</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-10 w-full max-w-4xl">
+                        <button onclick="setGame('gemTapper')"
+                                class="p-10 text-4xl font-bold bg-green-600 hover:bg-green-700 rounded-xl shadow-xl transition transform hover:scale-105 duration-300 touch-target-lg">
+                            1. Gem Tapper (Whack-a-Mole)
+                        </button>
+                        <button onclick="setGame('ticTacToe')"
+                                class="p-10 text-4xl font-bold bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xl transition transform hover:scale-105 duration-300 touch-target-lg">
+                            2. Tic-Tac-Toe
+                        </button>
+                        <button onclick="setGame('2048')"
+                                class="p-10 text-4xl font-bold bg-red-600 hover:bg-red-700 rounded-xl shadow-xl transition transform hover:scale-105 duration-300 touch-target-lg">
+                            3. 2048 (3x3 Grid)
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Utility function to create a "Back to Menu" button.
+         * @returns {string} HTML for the button.
+         */
+        function getBackButtonHTML() {
+            return `
+                <button onclick="setGame('home')"
+                        class="fixed top-8 left-8 p-4 text-2xl font-semibold bg-gray-600 hover:bg-gray-700 rounded-lg touch-target-sm z-10">
+                    &larr; Back to Menu
+                </button>
+            `;
+        }
+
+        // ====================================================================
+        // 3. GEM TAPPER GAME LOGIC
+        // ====================================================================
+
+        let gemTapper = {
+            score: 0,
+            time: 30,
+            gameInterval: null,
+            timeTimeout: null,
+            activeGem: -1,
+            isRunning: false,
+        };
+
+        /**
+         * Renders the Gem Tapper game board and controls.
+         * @param {HTMLElement} container - The main app container.
+         */
+        function renderGemTapper(container) {
+            // Reset game state on render
+            gemTapper.score = 0;
+            gemTapper.time = 30;
+            gemTapper.isRunning = false;
+            clearInterval(gemTapper.gameInterval);
+            clearTimeout(gemTapper.timeTimeout);
+
+            const highScore = loadHighScore();
+
+            container.innerHTML = `
+                ${getBackButtonHTML()}
+                <div class="flex flex-col items-center space-y-8">
+                    <h2 class="text-5xl font-bold text-green-400">Gem Tapper</h2>
+
+                    <div class="flex justify-around w-full max-w-3xl text-4xl font-semibold">
+                        <div class="p-4 bg-gray-700 rounded-lg">Score: <span id="gem-score">0</span></div>
+                        <div class="p-4 bg-gray-700 rounded-lg">Time: <span id="gem-time">30</span>s</div>
+                        <div class="p-4 bg-gray-700 rounded-lg">High Score: <span id="gem-high-score">${highScore}</span></div>
+                    </div>
+
+                    <div id="gem-message" class="text-4xl text-red-500 font-bold min-h-[50px] transition-opacity duration-500 opacity-0"></div>
+
+                    <button id="gem-start-button" onclick="startGemTapper()"
+                            class="p-6 text-3xl font-bold bg-yellow-500 hover:bg-yellow-600 rounded-xl shadow-lg transition duration-200 touch-target-lg">
+                        START GAME
+                    </button>
+
+                    <div id="gem-board" class="grid grid-cols-3 gap-4 p-4 bg-gray-700 rounded-xl w-full max-w-4xl aspect-square">
+                        ${Array(9).fill().map((_, i) =>
+                            `<div id="gem-${i}" data-index="${i}" onclick="tapGem(${i})"
+                                  class="gem-cell bg-gray-600 flex items-center justify-center p-8 rounded-xl aspect-square transition-colors duration-100 ease-in-out">
+                            </div>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        /** Starts the Gem Tapper game. */
+        function startGemTapper() {
+            if (gemTapper.isRunning) return;
+            gemTapper.isRunning = true;
+            gemTapper.score = 0;
+            gemTapper.time = 30;
+            document.getElementById('gem-score').textContent = '0';
+            document.getElementById('gem-time').textContent = '30';
+            document.getElementById('gem-message').textContent = '';
+            document.getElementById('gem-message').classList.add('opacity-0');
+            document.getElementById('gem-start-button').disabled = true;
+            document.getElementById('gem-start-button').textContent = 'TAPPING...';
+
+            gemTapper.gameInterval = setInterval(moveGem, 750); // Move gem every 750ms
+            gemTapper.timeTimeout = setTimeout(endGemTapper, gemTapper.time * 1000); // End game after 30s
+            moveGem(); // Start with an immediate gem
+        }
+
+        /** Ends the Gem Tapper game and handles score saving. */
+        function endGemTapper() {
+            if (!gemTapper.isRunning) return;
+            gemTapper.isRunning = false;
+            clearInterval(gemTapper.gameInterval);
+            clearTimeout(gemTapper.timeTimeout);
+
+            const msgElement = document.getElementById('gem-message');
+            msgElement.textContent = 'TIME OVER! Final Score: ' + gemTapper.score;
+            msgElement.classList.remove('opacity-0');
+            document.getElementById('gem-start-button').disabled = false;
+            document.getElementById('gem-start-button').textContent = 'START AGAIN';
+
+            // Clear the active gem
+            if (gemTapper.activeGem !== -1) {
+                document.getElementById(`gem-${gemTapper.activeGem}`).classList.remove('gem-active');
+                gemTapper.activeGem = -1;
+            }
+
+            // High Score Logic
+            if (saveHighScore(gemTapper.score)) {
+                msgElement.textContent += ' - NEW HIGH SCORE!';
+                document.getElementById('gem-high-score').textContent = gemTapper.score;
+            }
+        }
+
+        /** Moves the active gem to a new random location. */
+        function moveGem() {
+            if (!gemTapper.isRunning) return;
+
+            // Clear old gem state
+            if (gemTapper.activeGem !== -1) {
+                document.getElementById(`gem-${gemTapper.activeGem}`).classList.remove('gem-active');
+            }
+
+            let nextGem;
+            do {
+                nextGem = Math.floor(Math.random() * 9);
+            } while (nextGem === gemTapper.activeGem); // Ensure it moves
+
+            gemTapper.activeGem = nextGem;
+            document.getElementById(`gem-${gemTapper.activeGem}`).classList.add('gem-active');
+
+            // Update time display every move (approx. every 0.75s)
+            gemTapper.time = Math.max(0, gemTapper.time - 0.75); // Simple approximation
+            document.getElementById('gem-time').textContent = Math.ceil(gemTapper.time).toFixed(0);
+        }
+
+        /**
+         * Handles a tap on a gem cell.
+         * @param {number} index - The index of the tapped cell.
+         */
+        function tapGem(index) {
+            if (!gemTapper.isRunning || index !== gemTapper.activeGem) return;
+
+            gemTapper.score++;
+            document.getElementById('gem-score').textContent = gemTapper.score;
+
+            // Visual feedback for successful hit
+            const cell = document.getElementById(`gem-${index}`);
+            cell.style.backgroundColor = '#FF0000'; // Flash red
+            setTimeout(() => {
+                cell.style.backgroundColor = ''; // Restore via class
+            }, 100);
+
+            // Immediately move the gem
+            moveGem();
+        }
+
+        // ====================================================================
+        // 4. TIC-TAC-TOE GAME LOGIC
+        // ====================================================================
+
+        let tictactoe = {
+            board: Array(9).fill(null),
+            currentPlayer: 'X',
+            gameOver: false,
+        };
+
+        const winningCombos = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+            [0, 4, 8], [2, 4, 6]             // Diagonals
+        ];
+
+        /** Renders the Tic-Tac-Toe game board and controls. */
+        function renderTicTacToe(container) {
+            resetTicTacToe(); // Initialize game state
+
+            container.innerHTML = `
+                ${getBackButtonHTML()}
+                <div class="flex flex-col items-center space-y-8">
+                    <h2 class="text-5xl font-bold text-blue-400">Tic-Tac-Toe</h2>
+
+                    <div class="text-4xl font-semibold p-4 bg-gray-700 rounded-lg w-full max-w-lg text-center">
+                        Current Player: <span id="tictactoe-player" class="text-yellow-400">X</span>
+                    </div>
+
+                    <div id="tictactoe-message" class="text-4xl text-red-500 font-bold min-h-[50px]"></div>
+
+                    <div id="tictactoe-board" class="grid grid-cols-3 gap-4 p-4 bg-gray-700 rounded-xl w-full max-w-lg aspect-square">
+                        </div>
+
+                    <button onclick="resetTicTacToe()"
+                            class="p-6 text-3xl font-bold bg-purple-600 hover:bg-purple-700 rounded-xl shadow-lg transition duration-200 touch-target-lg">
+                        Reset Game
+                    </button>
+                </div>
+            `;
+            updateTicTacToeBoard();
+        }
+
+        /** Updates the visual state of the Tic-Tac-Toe board. */
+        function updateTicTacToeBoard() {
+            const boardElement = document.getElementById('tictactoe-board');
+            if (!boardElement) return;
+
+            // Use the new custom classes for X and O colors
+            const currentPlayerClass = tictactoe.currentPlayer === 'X' ? 'text-ttt-x' : 'text-ttt-o';
+            const playerIndicator = document.getElementById('tictactoe-player');
+            if(playerIndicator) {
+                playerIndicator.textContent = tictactoe.currentPlayer;
+                playerIndicator.className = 'text-yellow-400 ' + currentPlayerClass; // Apply dynamic color
+            }
+
+            boardElement.innerHTML = tictactoe.board.map((cell, i) => {
+                // Apply the custom color classes based on the cell content
+                const markerClass = cell === 'X' ? 'text-ttt-x' : (cell === 'O' ? 'text-ttt-o' : 'text-gray-400');
+                const disabled = cell !== null || tictactoe.gameOver ? 'disabled' : '';
+
+                return `
+                    <button id="ttt-cell-${i}" data-index="${i}" onclick="makeTicTacToeMove(${i})" ${disabled}
+                            class="ttt-cell rounded-xl aspect-square text-7xl font-black transition duration-150 ${markerClass} disabled:opacity-100 disabled:cursor-default touch-target-lg">
+                        ${cell || ''}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        /** Resets the Tic-Tac-Toe game state. */
+        function resetTicTacToe() {
+            tictactoe.board = Array(9).fill(null);
+            tictactoe.currentPlayer = 'X';
+            tictactoe.gameOver = false;
+            const msgElement = document.getElementById('tictactoe-message');
+            if (msgElement) msgElement.textContent = '';
+            if (document.getElementById('tictactoe-board')) updateTicTacToeBoard();
+        }
+
+        /**
+         * Handles a player's move.
+         * @param {number} index - The index of the cell to mark.
+         */
+        function makeTicTacToeMove(index) {
+            if (tictactoe.board[index] || tictactoe.gameOver) return;
+
+            tictactoe.board[index] = tictactoe.currentPlayer;
+
+            if (checkTicTacToeWin()) {
+                tictactoe.gameOver = true;
+                document.getElementById('tictactoe-message').textContent = `${tictactoe.currentPlayer} Wins!`;
+            } else if (tictactoe.board.every(cell => cell !== null)) {
+                tictactoe.gameOver = true;
+                document.getElementById('tictactoe-message').textContent = 'It\'s a Draw!';
+            } else {
+                tictactoe.currentPlayer = tictactoe.currentPlayer === 'X' ? 'O' : 'X';
+            }
+
+            updateTicTacToeBoard();
+        }
+
+        /**
+         * Checks if the current player has won.
+         * @returns {boolean} True if there is a winner.
+         */
+        function checkTicTacToeWin() {
+            return winningCombos.some(combo => {
+                const [a, b, c] = combo;
+                return tictactoe.board[a] &&
+                       tictactoe.board[a] === tictactoe.board[b] &&
+                       tictactoe.board[a] === tictactoe.board[c];
+            });
+        }
+
+
+        // ====================================================================
+        // 5. 2048 GAME LOGIC (Modified for 3x3 Grid)
+        // ====================================================================
+
+        let game2048 = {
+            board: [],
+            score: 0,
+            size: 3, // CHANGED FROM 4 TO 3
+            gameOver: false,
+        };
+
+        /** Renders the 2048 game board and controls. */
+        function render2048(container) {
+            init2048();
+            const gridColsClass = `grid-cols-${game2048.size}`; // grid-cols-3
+
+            container.innerHTML = `
+                ${getBackButtonHTML()}
+                <div class="flex flex-col items-center space-y-8">
+                    <h2 class="text-5xl font-bold text-red-400">2048 (${game2048.size}x${game2048.size})</h2>
+
+                    <div class="flex justify-center space-x-8 text-3xl font-semibold">
+                        <div class="p-4 bg-gray-700 rounded-lg">Score: <span id="game2048-score">0</span></div>
+                        <button onclick="init2048()"
+                                class="p-4 bg-purple-600 hover:bg-purple-700 rounded-lg touch-target-sm">
+                            New Game
+                        </button>
+                    </div>
+
+                    <div id="game2048-message" class="text-4xl text-yellow-500 font-bold min-h-[50px]"></div>
+
+                    <div id="game2048-board-container" class="w-full max-w-xl aspect-square">
+                        <div id="game2048-board" class="game-grid-2048 grid ${gridColsClass} gap-4 w-full h-full"
+                             ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event)">
+                            </div>
+                    </div>
+
+                    <div class="flex flex-col items-center space-y-2 mt-4">
+                        <button onclick="move2048('up')" class="dir-button p-6 bg-yellow-500 hover:bg-yellow-600 rounded-xl w-32 touch-target-lg text-3xl font-bold">UP</button>
+                        <div class="flex space-x-2">
+                            <button onclick="move2048('left')" class="dir-button p-6 bg-yellow-500 hover:bg-yellow-600 rounded-xl w-32 touch-target-lg text-3xl font-bold">LEFT</button>
+                            <div class="w-32"></div> <button onclick="move2048('right')" class="dir-button p-6 bg-yellow-500 hover:bg-yellow-600 rounded-xl w-32 touch-target-lg text-3xl font-bold">RIGHT</button>
+                        </div>
+                        <button onclick="move2048('down')" class="dir-button p-6 bg-yellow-500 hover:bg-yellow-600 rounded-xl w-32 touch-target-lg text-3xl font-bold">DOWN</button>
+                    </div>
+                </div>
+            `;
+            update2048Board();
+            // Enable keyboard controls only after rendering
+            document.addEventListener('keydown', handleKeyDown2048);
+        }
+
+        /** Cleans up 2048 event listeners. */
+        function cleanup2048() {
+            document.removeEventListener('keydown', handleKeyDown2048);
+            // Reset touch state
+            touchstartX = 0;
+            touchstartY = 0;
+        }
+
+        /** Initializes the 2048 game state. */
+        function init2048() {
+            const totalCells = game2048.size * game2048.size;
+            game2048.board = Array(totalCells).fill(0);
+            game2048.score = 0;
+            game2048.gameOver = false;
+            addRandomTile2048();
+            addRandomTile2048();
+            const msgElement = document.getElementById('game2048-message');
+            if (msgElement) msgElement.textContent = '';
+            if (document.getElementById('game2048-score')) document.getElementById('game2048-score').textContent = '0';
+        }
+
+        /** Adds a random 2 (90%) or 4 (10%) tile to an empty spot. */
+        function addRandomTile2048() {
+            const emptyCells = game2048.board.map((val, i) => (val === 0 ? i : -1)).filter(i => i !== -1);
+            if (emptyCells.length === 0) return;
+
+            const randomIndex = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            game2048.board[randomIndex] = Math.random() < 0.9 ? 2 : 4;
+            update2048Board();
+        }
+
+        /** Updates the visual state of the 2048 board. */
+        function update2048Board() {
+            const boardElement = document.getElementById('game2048-board');
+            if (!boardElement) return;
+
+            boardElement.innerHTML = game2048.board.map(val => {
+                // Adjust font size for larger numbers in a potentially smaller grid
+                let fontSizeClass = 'text-3xl'; // Default for 1-2 digit tiles
+                if (val >= 1024) fontSizeClass = 'text-xl';
+                else if (val >= 128) fontSizeClass = 'text-2xl';
+
+                const tileClass = val === 0 ? 'tile-empty' : (val <= 2048 ? `tile-${val}` : 'tile-super');
+                
+                return `<div class="tile ${tileClass} ${fontSizeClass}">${val > 0 ? val : ''}</div>`;
+            }).join('');
+
+            document.getElementById('game2048-score').textContent = game2048.score;
+
+            if (game2048.gameOver) {
+                document.getElementById('game2048-message').textContent = 'GAME OVER!';
+            }
+        }
+
+        /**
+         * Core logic to slide and merge tiles in one direction.
+         * @param {Array<number>} row - A single row or column array.
+         * @returns {{newRow: Array<number>, moved: boolean, score: number}} The processed array and move status.
+         */
+        function operateLine2048(row) {
+            let moved = false;
+            let scoreDelta = 0;
+
+            // 1. Remove zeros (slide)
+            let nonZero = row.filter(val => val !== 0);
+
+            // 2. Merge tiles
+            for (let i = 0; i < nonZero.length - 1; i++) {
+                if (nonZero[i] === nonZero[i + 1]) {
+                    nonZero[i] *= 2;
+                    scoreDelta += nonZero[i];
+                    nonZero[i + 1] = 0; // Mark for removal
+                    moved = true;
+                }
+            }
+
+            // 3. Final slide
+            nonZero = nonZero.filter(val => val !== 0);
+
+            // 4. Pad with zeros
+            const newRow = nonZero.concat(Array(row.length - nonZero.length).fill(0));
+
+            // Final check if the resulting row is different from the input
+            for (let i = 0; i < row.length; i++) {
+                if (row[i] !== newRow[i]) {
+                    moved = true;
+                    break;
+                }
+            }
+
+            return { newRow, moved, score: scoreDelta };
+        }
+
+        /**
+         * Handles the movement logic for the entire board.
+         * @param {string} direction - 'up', 'down', 'left', or 'right'.
+         */
+        function move2048(direction) {
+            if (game2048.gameOver) return;
+
+            let boardChanged = false;
+            const totalCells = game2048.size * game2048.size;
+            let newBoard = Array(totalCells).fill(0);
+            let totalScoreDelta = 0;
+            const size = game2048.size;
+
+            for (let i = 0; i < size; i++) {
+                let line = [];
+
+                // Extract line (row or column) based on direction
+                if (direction === 'left' || direction === 'right') {
+                    for (let j = 0; j < size; j++) line.push(game2048.board[i * size + j]);
+                } else { // 'up' or 'down'
+                    for (let j = 0; j < size; j++) line.push(game2048.board[j * size + i]);
+                }
+
+                // Reverse line if needed (for 'right' or 'down' push)
+                if (direction === 'right' || direction === 'down') line.reverse();
+
+                // Operate on the line
+                const result = operateLine2048(line);
+                totalScoreDelta += result.score;
+                if (result.moved) boardChanged = true;
+
+                // Reverse back if needed
+                if (direction === 'right' || direction === 'down') result.newRow.reverse();
+
+                // Re-insert the line into the new board
+                if (direction === 'left' || direction === 'right') {
+                    for (let j = 0; j < size; j++) newBoard[i * size + j] = result.newRow[j];
+                } else { // 'up' or 'down'
+                    for (let j = 0; j < size; j++) newBoard[j * size + i] = result.newRow[j];
+                }
+            }
+
+            // Update board and check game state
+            if (boardChanged) {
+                game2048.board = newBoard;
+                game2048.score += totalScoreDelta;
+                addRandomTile2048();
+                if (!canMove2048()) {
+                    game2048.gameOver = true;
+                }
+            }
+            update2048Board();
+        }
+
+        /**
+         * Checks if any move is possible (merges or slides).
+         * @returns {boolean} True if a move is possible.
+         */
+        function canMove2048() {
+            // Check for empty cells
+            if (game2048.board.includes(0)) return true;
+
+            const size = game2048.size;
+
+            // Check for adjacent identical tiles (merge check)
+            for (let i = 0; i < size; i++) {
+                for (let j = 0; j < size; j++) {
+                    const currentVal = game2048.board[i * size + j];
+
+                    // Check right neighbor
+                    if (j < size - 1 && currentVal === game2048.board[i * size + (j + 1)]) return true;
+
+                    // Check bottom neighbor
+                    if (i < size - 1 && currentVal === game2048.board[(i + 1) * size + j]) return true;
+                }
+            }
+
+            return false;
+        }
+
+        // --- 2048 Control Handlers (Keyboard and Touch) ---
+
+        // Keyboard handler
+        function handleKeyDown2048(event) {
+            if (appState.view !== '2048') return;
+
+            let direction = null;
+            switch (event.key) {
+                case 'ArrowUp':
+                    direction = 'up';
+                    break;
+                case 'ArrowDown':
+                    direction = 'down';
+                    break;
+                case 'ArrowLeft':
+                    direction = 'left';
+                    break;
+                case 'ArrowRight':
+                    direction = 'right';
+                    break;
+            }
+
+            if (direction) {
+                event.preventDefault(); // Prevent page scrolling
+                move2048(direction);
+            }
+        }
+
+        // Touch/Swipe handlers
+        let touchstartX = 0;
+        let touchstartY = 0;
+
+        function handleTouchStart(event) {
+            if (game2048.gameOver || appState.view !== '2048') return;
+            touchstartX = event.touches[0].clientX;
+            touchstartY = event.touches[0].clientY;
+            event.preventDefault(); // Prevent scrolling on the game board
+        }
+
+        function handleTouchMove(event) {
+            if (game2048.gameOver || appState.view !== '2048') return;
+            if (!touchstartX || !touchstartY) return;
+
+            const touchendX = event.changedTouches[0].clientX;
+            const touchendY = event.changedTouches[0].clientY;
+
+            const dx = touchendX - touchstartX;
+            const dy = touchendY - touchstartY;
+
+            const threshold = 50; // Minimum distance for a valid swipe
+            let direction = null;
+
+            if (Math.abs(dx) > Math.abs(dy)) { // Horizontal swipe
+                if (Math.abs(dx) > threshold) {
+                    direction = dx > 0 ? 'right' : 'left';
+                }
+            } else { // Vertical swipe
+                if (Math.abs(dy) > threshold) {
+                    direction = dy > 0 ? 'down' : 'up';
+                }
+            }
+
+            if (direction) {
+                move2048(direction);
+                // Reset touch points to prevent multiple moves from one long swipe
+                touchstartX = 0;
+                touchstartY = 0;
+            }
+            event.preventDefault(); // Prevent scrolling
+        }
+
+        // ====================================================================
+        // 6. INITIALIZATION
+        // ====================================================================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Start the application on the home page
+            setGame('home');
+        });
+
+    </script>
+</body>
+</html>
