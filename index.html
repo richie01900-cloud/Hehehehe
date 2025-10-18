@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class 12 Student Project - Gaming Zone</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Password Protection Screen -->
+    <div id="password-screen" class="password-screen">
+        <div class="password-container">
+            <h1>🎮 Class 12 Student Project</h1>
+            <h2>Gaming Zone</h2>
+            <div class="password-form">
+                <input type="password" id="password-input" placeholder="Enter Password" maxlength="20">
+                <button onclick="checkPassword()">Enter Gaming Zone</button>
+                <div id="password-error" class="password-error"></div>
+            </div>
+            <p class="hint">Hint: Mc of eminance in shadows...</p>
+        </div>
+    </div>
+
+    <!-- Main Gaming Website -->
+    <div id="main-content" class="main-content" style="display: none;">
+        <div class="container">
+            <header>
+                <h1>🎮 Class 12 Student Gaming Zone</h1>
+                <p>Welcome to the Ultimate Gaming Zone!</p>
+                <div class="points-display">
+                    <span class="points-label">🏆 CGAPH Points:</span>
+                    <span class="points-value" id="cgaph-points">1000</span>
+                </div>
+                <button id="logout-btn" onclick="logout()" class="logout-btn">Logout</button>
+            </header>
+
+        <nav class="main-nav">
+            <button class="nav-btn active" data-section="home">🏠 Home</button>
+            <button class="nav-btn" data-section="tic-tac-toe">⭕ Tic-Tac-Toe</button>
+            <button class="nav-btn" data-section="blackjack">🃏 Blackjack (Rich)</button>
+        </nav>
+
+        <main>
+            <!-- Home Section -->
+            <section id="home" class="content-section active">
+                <div class="welcome-card">
+                    <h2>🎮 Welcome to Gaming Zone!</h2>
+                    <p>Choose your favorite game from the navigation above and start playing!</p>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h3>⭕ Tic-Tac-Toe</h3>
+                            <p>Play against unbeatable AI with adjustable difficulty</p>
+                        </div>
+                        <div class="feature-card rich-game">
+                            <h3>🃏 Blackjack (Rich)</h3>
+                            <p>Beat the dealer in this classic card game</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- Tic-Tac-Toe Section -->
+            <section id="tic-tac-toe" class="content-section">
+                <h2>⭕ Tic-Tac-Toe</h2>
+                <div class="game-container">
+                    <div class="game-info">
+                        <div class="score-display">
+                            <span>Player X: <span id="player-x-score">0</span></span>
+                            <span>Player O: <span id="player-o-score">0</span></span>
+                            <span>Draws: <span id="draw-score">0</span></span>
+                        </div>
+                        <div class="game-controls">
+                            <button onclick="resetTicTacToe()">New Game</button>
+                        </div>
+                        <div class="betting-area">
+                            <h3>🎯 Place Your Points</h3>
+                            <div class="bet-controls">
+                                <button onclick="placeTicTacToeBet(10)" class="bet-btn">10 Points</button>
+                                <button onclick="placeTicTacToeBet(25)" class="bet-btn">25 Points</button>
+                                <button onclick="placeTicTacToeBet(50)" class="bet-btn">50 Points</button>
+                                <button onclick="placeTicTacToeBet(100)" class="bet-btn">100 Points</button>
+                            </div>
+                            <div class="current-bet-display">
+                                <span>Current Amount: <span id="tic-tac-toe-current-bet">0</span> Points</span>
+                            </div>
+                        </div>
+                        <div class="current-player">
+                            <p>Current Player: <span id="current-player">X</span></p>
+                        </div>
+                    </div>
+                    <div class="tic-tac-toe-board">
+                        <div class="board-row">
+                            <div class="cell" onclick="makeMove(0)"></div>
+                            <div class="cell" onclick="makeMove(1)"></div>
+                            <div class="cell" onclick="makeMove(2)"></div>
+                        </div>
+                        <div class="board-row">
+                            <div class="cell" onclick="makeMove(3)"></div>
+                            <div class="cell" onclick="makeMove(4)"></div>
+                            <div class="cell" onclick="makeMove(5)"></div>
+                        </div>
+                        <div class="board-row">
+                            <div class="cell" onclick="makeMove(6)"></div>
+                            <div class="cell" onclick="makeMove(7)"></div>
+                            <div class="cell" onclick="makeMove(8)"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+
+
+
+
+            <!-- Blackjack Game Section -->
+            <section id="blackjack" class="content-section">
+                <h2>🃏 Blackjack (Rich Game)</h2>
+                <div class="game-container">
+                    <div class="game-info">
+                        <div class="modern-score-display">
+                            <div class="score-card player-card">
+                                <div class="score-label">👤 Your Hand</div>
+                                <div class="score-value" id="player-score">0</div>
+                                <div class="score-subtitle">Cards: <span id="player-card-count">0</span></div>
+                            </div>
+                            <div class="score-card dealer-card">
+                                <div class="score-label">🎭 Dealer</div>
+                                <div class="score-value" id="dealer-score">0</div>
+                                <div class="score-subtitle">Cards: <span id="dealer-card-count">0</span></div>
+                            </div>
+                            <div class="score-card money-card">
+                                <div class="score-label">💰 Current Amount</div>
+                                <div class="score-value"><span id="current-bet-display">0</span></div>
+                                <div class="score-subtitle">Points at Stake</div>
+                            </div>
+                        </div>
+                        <div class="game-controls">
+                            <button onclick="hitCard()" id="hit-btn" disabled class="modern-btn hit-btn">🎯 HIT</button>
+                            <button onclick="standCard()" id="stand-btn" disabled class="modern-btn stand-btn">✋ STAND</button>
+                        </div>
+                        <div class="game-instructions">
+                            <p>🎯 Get as close to 21 as possible without going over. Beat the dealer to win!</p>
+                        </div>
+                    </div>
+                    <div id="blackjack-game" class="modern-blackjack-game">
+                        <div class="cards-container">
+                            <div class="dealer-section">
+                                <h3>🎭 Dealer Cards</h3>
+                                <div class="dealer-cards" id="dealer-cards"></div>
+                            </div>
+                            <div class="player-section">
+                                <h3>👤 Your Cards</h3>
+                                <div class="player-cards" id="player-cards"></div>
+                            </div>
+                        </div>
+                        <div class="betting-area">
+                            <h3>🎯 Place Your Points</h3>
+                            <div class="bet-controls">
+                                <button onclick="placeBet(10)" class="bet-btn">10 Points</button>
+                                <button onclick="placeBet(25)" class="bet-btn">25 Points</button>
+                                <button onclick="placeBet(50)" class="bet-btn">50 Points</button>
+                                <button onclick="placeBet(100)" class="bet-btn">100 Points</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>🎮 Class 12 Student Project - Gaming Zone</p>
+        </footer>
+        
+        <!-- Toast Container -->
+        <div id="toast-container" class="toast-container"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
