@@ -179,6 +179,738 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        // Toast Notification System
+function showToast(message, type = 'info', duration = 4000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+    };
+    
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || icons.info}</span>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" onclick="closeToast(this)">×</button>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Trigger animation
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 100);
+    
+    // Auto remove
+    setTimeout(() => {
+        closeToast(toast.querySelector('.toast-close'));
+    }, duration);
+}
+
+function closeToast(closeBtn) {
+    const toast = closeBtn.closest('.toast');
+    if (!toast) return;
+    
+    toast.classList.remove('show');
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 300);
+}
+
+// CGAPH Points System
+let cgaphPoints = {
+    total: 1000,
+    currentBet: 0
+};
+
+function initializeCGAPHPoints() {
+    cgaphPoints.total = parseInt(localStorage.getItem('cgaphPoints')) || 1000;
+    updateCGAPHPointsDisplay();
+}
+
+function updateCGAPHPointsDisplay() {
+    const pointsEl = document.getElementById('cgaph-points');
+    if (pointsEl) {
+        pointsEl.textContent = cgaphPoints.total;
+    }
+}
+
+function addCGAPHPoints(amount) {
+    cgaphPoints.total += amount;
+    updateCGAPHPointsDisplay();
+    localStorage.setItem('cgaphPoints', cgaphPoints.total.toString());
+}
+
+function subtractCGAPHPoints(amount) {
+    if (cgaphPoints.total >= amount) {
+        cgaphPoints.total -= amount;
+        updateCGAPHPointsDisplay();
+        localStorage.setItem('cgaphPoints', cgaphPoints.total.toString());
+        return true;
+    }
+    return false;
+}
+
+// Password Protection System
+const CORRECT_PASSWORD = "Shadow";
+
+function checkPassword() {
+    const passwordInput = document.getElementById('password-input');
+    const passwordError = document.getElementById('password-error');
+    const passwordScreen = document.getElementById('password-screen');
+    const mainContent = document.getElementById('main-content');
+    
+    if (passwordInput.value === CORRECT_PASSWORD) {
+        passwordScreen.style.display = 'none';
+        mainContent.style.display = 'block';
+        initializeGames();
+        showToast('Welcome to Gaming Zone! 🎮', 'success');
+    } else {
+        passwordError.textContent = 'Incorrect password! Try again.';
+        passwordInput.value = '';
+        passwordInput.focus();
+        showToast('Incorrect password! Try again. 🔒', 'error');
+    }
+}
+
+function logout() {
+    const passwordScreen = document.getElementById('password-screen');
+    const mainContent = document.getElementById('main-content');
+    const passwordInput = document.getElementById('password-input');
+    const passwordError = document.getElementById('password-error');
+    
+    passwordScreen.style.display = 'flex';
+    mainContent.style.display = 'none';
+    passwordInput.value = '';
+    passwordError.textContent = '';
+    passwordInput.focus();
+}
+
+// Navigation System
+function initializeNavigation() {
+    const navButtons = document.querySelectorAll('.nav-btn');
+    const sections = document.querySelectorAll('.content-section');
+    
+    navButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetSection = button.getAttribute('data-section');
+            
+            // Remove active class from all buttons and sections
+            navButtons.forEach(btn => btn.classList.remove('active'));
+            sections.forEach(section => section.classList.remove('active'));
+            
+            // Add active class to clicked button and target section
+            button.classList.add('active');
+            const targetElement = document.getElementById(targetSection);
+            if (targetElement) {
+                targetElement.classList.add('active');
+            }
+            
+            // Initialize games when their sections are activated
+            if (targetSection === 'tic-tac-toe') {
+                setTimeout(() => initializeTicTacToe(), 100);
+            } else if (targetSection === 'blackjack') {
+                setTimeout(() => initializeBlackjack(), 100);
+            }
+        });
+    });
+}
+
+// Game Initialization
+function initializeGames() {
+    initializeCGAPHPoints();
+    initializeNavigation();
+    initializeTicTacToe();
+    initializeBlackjack();
+}
+
+// Tic-Tac-Toe Game
+let ticTacToe = {
+    board: ['', '', '', '', '', '', '', '', ''],
+    currentPlayer: 'X',
+    aiDifficulty: 'hard', // 'easy', 'medium', 'hard'
+    scores: {X: 0, O: 0, draws: 0},
+    currentBet: 0,
+    gameActive: false,
+    consecutiveLosses: 0,
+    consecutiveWins: 0
+};
+
+function initializeTicTacToe() {
+    ticTacToe.scores = JSON.parse(localStorage.getItem('ticTacToeScores')) || {X: 0, O: 0, draws: 0};
+    updateTicTacToeScores();
+}
+
+function makeMove(index) {
+    if (ticTacToe.board[index] !== '' || !isGameActive() || !ticTacToe.gameActive) return;
+    
+    ticTacToe.board[index] = ticTacToe.currentPlayer;
+    updateBoard();
+    
+    if (checkWinner()) {
+        setTimeout(() => {
+            if (ticTacToe.currentPlayer === 'X') {
+                // Player wins
+                showToast(`You win! +${ticTacToe.currentBet * 2} Points! 🎉`, 'success');
+                addCGAPHPoints(ticTacToe.currentBet * 2);
+                ticTacToe.consecutiveWins++;
+                ticTacToe.consecutiveLosses = 0;
+                
+                // If player wins after difficulty was lowered, increase difficulty
+                if (ticTacToe.consecutiveWins >= 1 && ticTacToe.aiDifficulty !== 'hard') {
+                    if (ticTacToe.aiDifficulty === 'easy') {
+                        ticTacToe.aiDifficulty = 'medium';
+                        console.log('AI Difficulty changed to: Medium');
+                        showToast('AI Difficulty: Medium 🤖', 'info');
+                    } else if (ticTacToe.aiDifficulty === 'medium') {
+                        ticTacToe.aiDifficulty = 'hard';
+                        console.log('AI Difficulty changed to: Hard (Unbeatable)');
+                        showToast('AI Difficulty: Hard (Unbeatable) 🤖', 'warning');
+                    }
+                    ticTacToe.consecutiveWins = 0;
+                }
+            } else {
+                // AI wins
+                showToast(`AI wins! You lose ${ticTacToe.currentBet} Points! 😔`, 'error');
+                ticTacToe.consecutiveLosses++;
+                ticTacToe.consecutiveWins = 0;
+                
+                // Dynamic difficulty adjustment
+                if (ticTacToe.consecutiveLosses >= 5) {
+                    if (ticTacToe.aiDifficulty === 'hard') {
+                        ticTacToe.aiDifficulty = 'medium';
+                        console.log('AI Difficulty changed to: Medium (Player lost 5 in a row)');
+                        showToast('AI Difficulty: Medium 🤖', 'info');
+                        ticTacToe.consecutiveLosses = 0;
+                    } else if (ticTacToe.aiDifficulty === 'medium') {
+                        ticTacToe.aiDifficulty = 'easy';
+                        console.log('AI Difficulty changed to: Easy (Player lost 5 more in a row)');
+                        showToast('AI Difficulty: Easy 🤖', 'info');
+                        ticTacToe.consecutiveLosses = 0;
+                    }
+                }
+            }
+            ticTacToe.scores[ticTacToe.currentPlayer]++;
+            updateTicTacToeScores();
+            endTicTacToeGame();
+        }, 100);
+        return;
+    }
+    
+    if (isBoardFull()) {
+        setTimeout(() => {
+            showToast(`It's a draw! You get back ${ticTacToe.currentBet} Points! 🤝`, 'info');
+            addCGAPHPoints(ticTacToe.currentBet);
+            ticTacToe.scores.draws++;
+            updateTicTacToeScores();
+            endTicTacToeGame();
+        }, 100);
+        return;
+    }
+    
+    ticTacToe.currentPlayer = ticTacToe.currentPlayer === 'X' ? 'O' : 'X';
+    document.getElementById('current-player').textContent = ticTacToe.currentPlayer;
+    
+    if (ticTacToe.currentPlayer === 'O') {
+        setTimeout(makeAIMove, 500);
+    }
+}
+
+function updateBoard() {
+    const cells = document.querySelectorAll('.cell');
+    cells.forEach((cell, index) => {
+        cell.textContent = ticTacToe.board[index];
+        cell.className = `cell ${ticTacToe.board[index].toLowerCase()}`;
+    });
+}
+
+function checkWinner() {
+    const winningCombinations = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6]
+    ];
+    
+    return winningCombinations.some(combination => {
+        const [a, b, c] = combination;
+        return ticTacToe.board[a] && ticTacToe.board[a] === ticTacToe.board[b] && ticTacToe.board[a] === ticTacToe.board[c];
+    });
+}
+
+function isBoardFull() {
+    return ticTacToe.board.every(cell => cell !== '');
+}
+
+function isGameActive() {
+    return !checkWinner() && !isBoardFull();
+}
+
+function makeAIMove() {
+    console.log(`AI Difficulty: ${ticTacToe.aiDifficulty}`);
+    let bestMove;
+    
+    switch(ticTacToe.aiDifficulty) {
+        case 'easy':
+            bestMove = getEasyAIMove();
+            break;
+        case 'medium':
+            bestMove = getMediumAIMove();
+            break;
+        case 'hard':
+            bestMove = getHardAIMove();
+            break;
+        default:
+            bestMove = getHardAIMove();
+    }
+    
+    setTimeout(() => {
+        makeMove(bestMove);
+    }, 500);
+}
+
+function getEasyAIMove() {
+    const emptyCells = ticTacToe.board.map((cell, index) => cell === '' ? index : null).filter(val => val !== null);
+    return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+}
+
+function getMediumAIMove() {
+    // Try to win first
+    for (let i = 0; i < 9; i++) {
+        if (ticTacToe.board[i] === '') {
+            ticTacToe.board[i] = 'O';
+            if (checkWinner()) {
+                ticTacToe.board[i] = '';
+                return i;
+            }
+            ticTacToe.board[i] = '';
+        }
+    }
+    
+    // Try to block player
+    for (let i = 0; i < 9; i++) {
+        if (ticTacToe.board[i] === '') {
+            ticTacToe.board[i] = 'X';
+            if (checkWinner()) {
+                ticTacToe.board[i] = '';
+                return i;
+            }
+            ticTacToe.board[i] = '';
+        }
+    }
+    
+    // Random move
+    return getEasyAIMove();
+}
+
+function getHardAIMove() {
+    let bestScore = -Infinity;
+    let bestMove = 0;
+    
+    for (let i = 0; i < 9; i++) {
+        if (ticTacToe.board[i] === '') {
+            ticTacToe.board[i] = 'O';
+            let score = minimax(ticTacToe.board, 0, false);
+            ticTacToe.board[i] = '';
+            
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = i;
+            }
+        }
+    }
+    
+    return bestMove;
+}
+
+function minimax(board, depth, isMaximizing) {
+    if (checkWinner()) {
+        return isMaximizing ? -10 + depth : 10 - depth;
+    }
+    
+    if (isBoardFull()) {
+        return 0;
+    }
+    
+    if (isMaximizing) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < 9; i++) {
+            if (board[i] === '') {
+                board[i] = 'O';
+                let score = minimax(board, depth + 1, false);
+                board[i] = '';
+                bestScore = Math.max(score, bestScore);
+            }
+        }
+        return bestScore;
+    } else {
+        let bestScore = Infinity;
+        for (let i = 0; i < 9; i++) {
+            if (board[i] === '') {
+                board[i] = 'X';
+                let score = minimax(board, depth + 1, true);
+                board[i] = '';
+                bestScore = Math.min(score, bestScore);
+            }
+        }
+        return bestScore;
+    }
+}
+
+function resetTicTacToe() {
+    ticTacToe.board = ['', '', '', '', '', '', '', '', ''];
+    ticTacToe.currentPlayer = 'X';
+    ticTacToe.gameActive = false;
+    ticTacToe.currentBet = 0;
+    document.getElementById('current-player').textContent = 'X';
+    document.getElementById('tic-tac-toe-current-bet').textContent = '0';
+    updateBoard();
+    enableTicTacToeBetButtons();
+}
+
+function placeTicTacToeBet(amount) {
+    if (ticTacToe.gameActive) return;
+    if (!subtractCGAPHPoints(amount)) {
+        showToast('Not enough CGAPH Points! 💸', 'error');
+        return;
+    }
+    
+    ticTacToe.currentBet = amount;
+    ticTacToe.gameActive = true;
+    document.getElementById('tic-tac-toe-current-bet').textContent = amount;
+    disableTicTacToeBetButtons();
+    
+    showToast(`Game started with ${amount} Points! 🎯`, 'info');
+}
+
+function endTicTacToeGame() {
+    ticTacToe.gameActive = false;
+    ticTacToe.currentBet = 0;
+    document.getElementById('tic-tac-toe-current-bet').textContent = '0';
+    enableTicTacToeBetButtons();
+}
+
+function disableTicTacToeBetButtons() {
+    const betButtons = document.querySelectorAll('#tic-tac-toe .bet-btn');
+    betButtons.forEach(btn => {
+        btn.disabled = true;
+    });
+}
+
+function enableTicTacToeBetButtons() {
+    const betButtons = document.querySelectorAll('#tic-tac-toe .bet-btn');
+    betButtons.forEach(btn => {
+        btn.disabled = false;
+    });
+}
+
+function updateTicTacToeScores() {
+    document.getElementById('player-x-score').textContent = ticTacToe.scores.X;
+    document.getElementById('player-o-score').textContent = ticTacToe.scores.O;
+    document.getElementById('draw-score').textContent = ticTacToe.scores.draws;
+    localStorage.setItem('ticTacToeScores', JSON.stringify(ticTacToe.scores));
+}
+
+// Blackjack Game (Rich Game)
+let blackjackGame = {
+    deck: [],
+    playerCards: [],
+    dealerCards: [],
+    playerScore: 0,
+    dealerScore: 0,
+    currentBet: 0,
+    gameActive: false
+};
+
+function initializeBlackjack() {
+    updateBlackjackDisplay();
+}
+
+function createDeck() {
+    const suits = ['♠', '♥', '♦', '♣'];
+    const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    const deck = [];
+    
+    for (let suit of suits) {
+        for (let value of values) {
+            deck.push({suit, value});
+        }
+    }
+    
+    return deck;
+}
+
+function shuffleDeck(deck) {
+    for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
+}
+
+function dealCard(deck) {
+    return deck.pop();
+}
+
+function getCardValue(card) {
+    if (card.value === 'A') return 11;
+    if (['J', 'Q', 'K'].includes(card.value)) return 10;
+    return parseInt(card.value);
+}
+
+function calculateScore(cards) {
+    let score = 0;
+    let aces = 0;
+    
+    for (let card of cards) {
+        if (card.value === 'A') {
+            aces++;
+            score += 11;
+        } else if (['J', 'Q', 'K'].includes(card.value)) {
+            score += 10;
+        } else {
+            score += parseInt(card.value);
+        }
+    }
+    
+    while (score > 21 && aces > 0) {
+        score -= 10;
+        aces--;
+    }
+    
+    return score;
+}
+
+function startBlackjack() {
+    if (blackjackGame.currentBet === 0) {
+        showToast('Please place an amount first! 💰', 'warning');
+        return;
+    }
+    
+    blackjackGame.playerCards = [];
+    blackjackGame.dealerCards = [];
+    blackjackGame.gameActive = true;
+    
+    // Create and shuffle deck
+    blackjackGame.deck = shuffleDeck(createDeck());
+    
+    // Deal initial cards
+    blackjackGame.playerCards.push(dealCard(blackjackGame.deck));
+    blackjackGame.dealerCards.push(dealCard(blackjackGame.deck));
+    blackjackGame.playerCards.push(dealCard(blackjackGame.deck));
+    blackjackGame.dealerCards.push(dealCard(blackjackGame.deck));
+    
+    blackjackGame.playerScore = calculateScore(blackjackGame.playerCards);
+    blackjackGame.dealerScore = calculateScore(blackjackGame.dealerCards);
+    
+    updateBlackjackDisplay();
+    displayCards();
+    
+    // Enable/disable buttons
+    const hitBtn = document.getElementById('hit-btn');
+    const standBtn = document.getElementById('stand-btn');
+    
+    if (hitBtn) hitBtn.disabled = false;
+    if (standBtn) standBtn.disabled = false;
+    
+    // Disable amount buttons during game
+    disableBetButtons();
+    
+    // Check for blackjack
+    if (blackjackGame.playerScore === 21) {
+        setTimeout(() => {
+            showToast('Blackjack! You win! 🎉', 'success');
+            addCGAPHPoints(blackjackGame.currentBet * 2.5);
+            endBlackjackGame();
+        }, 500);
+    }
+}
+
+function hitCard() {
+    if (!blackjackGame.gameActive) return;
+    
+    blackjackGame.playerCards.push(dealCard(blackjackGame.deck));
+    blackjackGame.playerScore = calculateScore(blackjackGame.playerCards);
+    
+    updateBlackjackDisplay();
+    displayCards();
+    
+    if (blackjackGame.playerScore > 21) {
+        showToast('Bust! You lose! 💥', 'error');
+        endBlackjackGame();
+    }
+}
+
+function standCard() {
+    if (!blackjackGame.gameActive) return;
+    
+    // Dealer plays
+    while (blackjackGame.dealerScore < 17) {
+        blackjackGame.dealerCards.push(dealCard(blackjackGame.deck));
+        blackjackGame.dealerScore = calculateScore(blackjackGame.dealerCards);
+    }
+    
+    updateBlackjackDisplay();
+    displayCards();
+    
+    // Determine winner
+    if (blackjackGame.dealerScore > 21) {
+        showToast('Dealer busts! You win! 🎉', 'success');
+        addCGAPHPoints(blackjackGame.currentBet * 2);
+    } else if (blackjackGame.playerScore > blackjackGame.dealerScore) {
+        showToast('You win! 🎉', 'success');
+        addCGAPHPoints(blackjackGame.currentBet * 2);
+    } else if (blackjackGame.playerScore < blackjackGame.dealerScore) {
+        showToast('Dealer wins! 😔', 'error');
+    } else {
+        showToast('Push! It\'s a tie! 🤝', 'info');
+        addCGAPHPoints(blackjackGame.currentBet);
+    }
+    
+    endBlackjackGame();
+}
+
+function endBlackjackGame() {
+    blackjackGame.gameActive = false;
+    blackjackGame.currentBet = 0;
+    
+    const hitBtn = document.getElementById('hit-btn');
+    const standBtn = document.getElementById('stand-btn');
+    
+    if (hitBtn) hitBtn.disabled = true;
+    if (standBtn) standBtn.disabled = true;
+    
+    // Re-enable amount buttons
+    enableBetButtons();
+    
+    updateBlackjackDisplay();
+}
+
+function placeBet(amount) {
+    if (blackjackGame.gameActive) return;
+    if (!subtractCGAPHPoints(amount)) {
+        showToast('Not enough CGAPH Points! 💸', 'error');
+        return;
+    }
+    
+    blackjackGame.currentBet = amount;
+    updateBlackjackDisplay();
+    
+    // Automatically start the game after placing amount
+    setTimeout(() => {
+        startBlackjack();
+    }, 500);
+}
+
+function displayCards() {
+    const playerCardsEl = document.getElementById('player-cards');
+    const dealerCardsEl = document.getElementById('dealer-cards');
+    
+    if (!playerCardsEl || !dealerCardsEl) return;
+    
+    // Display player cards
+    playerCardsEl.innerHTML = '';
+    blackjackGame.playerCards.forEach(card => {
+        const cardEl = document.createElement('div');
+        cardEl.className = `card ${isRedSuit(card.suit) ? 'red' : 'black'}`;
+        cardEl.innerHTML = `
+            <div class="card-value">${card.value}</div>
+            <div class="card-suit">${card.suit}</div>
+        `;
+        playerCardsEl.appendChild(cardEl);
+    });
+    
+    // Display dealer cards
+    dealerCardsEl.innerHTML = '';
+    blackjackGame.dealerCards.forEach((card, index) => {
+        const cardEl = document.createElement('div');
+        cardEl.className = `card ${isRedSuit(card.suit) ? 'red' : 'black'}`;
+        if (blackjackGame.gameActive && index === 1) {
+            // Hide second dealer card during game
+            cardEl.innerHTML = `
+                <div class="card-value">?</div>
+                <div class="card-suit">?</div>
+            `;
+        } else {
+            cardEl.innerHTML = `
+                <div class="card-value">${card.value}</div>
+                <div class="card-suit">${card.suit}</div>
+            `;
+        }
+        dealerCardsEl.appendChild(cardEl);
+    });
+}
+
+function isRedSuit(suit) {
+    return suit === '♥' || suit === '♦';
+}
+
+function updateBlackjackDisplay() {
+    const playerScoreEl = document.getElementById('player-score');
+    const dealerScoreEl = document.getElementById('dealer-score');
+    const playerCardCountEl = document.getElementById('player-card-count');
+    const dealerCardCountEl = document.getElementById('dealer-card-count');
+    const currentBetDisplayEl = document.getElementById('current-bet-display');
+    
+    if (playerScoreEl) playerScoreEl.textContent = blackjackGame.gameActive ? blackjackGame.playerScore : 0;
+    if (playerCardCountEl) playerCardCountEl.textContent = blackjackGame.playerCards.length;
+    if (dealerCardCountEl) dealerCardCountEl.textContent = blackjackGame.dealerCards.length;
+    if (currentBetDisplayEl) currentBetDisplayEl.textContent = blackjackGame.currentBet;
+    
+    // Only show dealer score when game is not active (after stand or game over)
+    if (dealerScoreEl) {
+        if (blackjackGame.gameActive) {
+            // Show only first card value during active game
+            const firstCardValue = blackjackGame.dealerCards.length > 0 ? getCardValue(blackjackGame.dealerCards[0]) : 0;
+            dealerScoreEl.textContent = firstCardValue;
+        } else {
+            dealerScoreEl.textContent = blackjackGame.dealerScore;
+        }
+    }
+}
+
+function disableBetButtons() {
+    const betButtons = document.querySelectorAll('.bet-btn');
+    betButtons.forEach(btn => {
+        btn.disabled = true;
+    });
+}
+
+function enableBetButtons() {
+    const betButtons = document.querySelectorAll('.bet-btn');
+    betButtons.forEach(btn => {
+        btn.disabled = false;
+    });
+}
+
+function resetBlackjack() {
+    blackjackGame.playerCards = [];
+    blackjackGame.dealerCards = [];
+    blackjackGame.playerScore = 0;
+    blackjackGame.dealerScore = 0;
+    blackjackGame.currentBet = 0;
+    blackjackGame.gameActive = false;
+    
+    updateBlackjackDisplay();
+    displayCards();
+    
+    const hitBtn = document.getElementById('hit-btn');
+    const standBtn = document.getElementById('stand-btn');
+    
+    if (hitBtn) hitBtn.disabled = true;
+    if (standBtn) standBtn.disabled = true;
+    
+    enableBetButtons();
+}
+    </script>
 </body>
 </html>
+
